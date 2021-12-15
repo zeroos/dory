@@ -4,7 +4,7 @@
 # Thorir Mar Ingolfsson <thoriri@iis.ee.ethz.ch>
 #
 # Copyright (C) 2019-2020 University of Bologna
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -53,7 +53,7 @@ def print_template_layer_1D(x, y_gold, W,
                          tile_n_in, tile_w_in, tile_w_out,
                          tile_n_out,
                          ds_x, ds_y, ds_W, ds_act, type_data,
-                         fs1, padding_left, padding_right, 
+                         fs1, padding_left, padding_right,
                          stride, dilation,
                          relu, BN,
                          out_mul, out_shift,
@@ -125,7 +125,7 @@ def print_template_layer_1D(x, y_gold, W,
     # W parameters
     tk['fs1'] = fs1
     tk['W_data_size_byte'] = ds_W
-    tk['W_tile_size_nof'] = tile_n_out 
+    tk['W_tile_size_nof'] = tile_n_out
     tk['b_size_byte'] = int(math.ceil(n_out * ds_W / 8.0))
     tk['W_tile_size_nif'] = tile_n_in
     tk['W_tile_size_byte'] = int(math.ceil(tile_n_out * tk['W_tile_size_nif'] * fs1 * ds_W / 8.0))
@@ -278,7 +278,7 @@ def print_template_layer_1D(x, y_gold, W,
         save_string = './application/DORY_network/src/main.c'
         with open(save_string, "w") as f:
             f.write(s)
-        tk['build_layers'] = os.listdir('./application/DORY_network/src/') 
+        tk['build_layers'] = os.listdir('./application/DORY_network/src/')
         tk['platform'] = 'GAP8'
         tmpl = Template(filename=root+"/templates/Makefile_template_L2")
         s = tmpl.render(**tk)
@@ -383,7 +383,7 @@ def print_template_network(
     if(optional_type == '1D_Conv'):
         tmpl = Template(filename=root + "/templates/network_template_1D.c")
     else:
-        tmpl = Template(filename=root + "/templates/network_template.c")
+        tmpl = Template(filename=root + "/templates/network_template_dronet.c")
     tk['PULP_Nodes_Graph'] = PULP_Nodes_Graph
     s = tmpl.render(verbose_log=l,**tk)
     save_string = './application/DORY_network/src/network.c'
@@ -392,7 +392,7 @@ def print_template_network(
 
 def print_pool_template_layer_L3(X, W, Y, fs1, fs2, padding, stride,
                             factor_ch_out,
-                            factor_h_out, 
+                            factor_h_out,
                             factor_h_in,
                             name,
                             out_dim1,
@@ -480,7 +480,7 @@ def print_pool_template_layer_L3(X, W, Y, fs1, fs2, padding, stride,
 
 def print_template_layer_L3(X, W, Y, fs1, fs2, padding, stride,
                             factor_ch_out,
-                            factor_h_out, 
+                            factor_h_out,
                             factor_h_in,
                             name,
                             out_dim1,
@@ -692,7 +692,7 @@ def print_template_layer(x, y_gold, W,
     tk['fs2'] = fs2
     tk['W_data_size_byte'] = ds_W
     if DW == 0:
-        tk['W_tile_size_nof'] = tile_n_out 
+        tk['W_tile_size_nof'] = tile_n_out
     else:
         tk['W_tile_size_nof'] = int(tile_n_out * ds_W / 8.0)
     if tk['has_bias'] == 1:
@@ -708,7 +708,7 @@ def print_template_layer(x, y_gold, W,
     if DW == 0:
         tk['W_stride_nof_byte'] = int(math.ceil(tk['nif'] * fs1 * fs2 * ds_W / 8.0))
     else:
-        tk['W_stride_nof_byte'] = int(math.ceil(tk['nif'] * fs1 * fs2))        
+        tk['W_stride_nof_byte'] = int(math.ceil(tk['nif'] * fs1 * fs2))
     tk['W_stride_hw_byte'] = int(math.ceil(tk['nif'] * ds_W / 8.0))
     tk['W_tile_nif_byte'] = int(math.ceil(tk['W_tile_size_nif'] * ds_W / 8.0))
     # l2 parameters
@@ -902,7 +902,7 @@ def print_template_layer(x, y_gold, W,
         save_string = './application/DORY_network/src/main.c'
         with open(save_string, "w") as f:
             f.write(s)
-        tk['build_layers'] = os.listdir('./application/DORY_network/src/') 
+        tk['build_layers'] = os.listdir('./application/DORY_network/src/')
         tk['platform'] = 'GAP8'
         tmpl = Template(filename=root+"/templates/Makefile_template_L2")
         s = tmpl.render(**tk)
