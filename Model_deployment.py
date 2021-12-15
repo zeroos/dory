@@ -5,7 +5,7 @@
 # Thorir Mar Ingolfsson <thoriri@iis.ee.ethz.ch>
 #
 # Copyright (C) 2019-2020 University of Bologna
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -69,7 +69,8 @@ class Model_deployment():
         save_string = './application/DORY_network/src/dory.c'
         with open(save_string, "w") as f:
             f.write(s)
-        os.system('cp ../templates/test_template.c ./application/DORY_network/src/')
+        # os.system('cp ../templates/test_template.c ./application/DORY_network/src/')
+        os.system('cp ../templates/main.c ./application/DORY_network/src/')
         os.system('cp ../templates/network.h ./application/DORY_network/inc/')
         if optional == "1D_Conv":
             os.system('cp ../pulp-nn-1d/' + version +'/include/*  ./application/DORY_network/inc/')
@@ -278,13 +279,13 @@ class Model_deployment():
                         f.write(bytes((l,)))
         return PULP_Nodes_Graph, file_list_w, weights_to_write
 
-    def create_layers_tiling(self, PULP_Nodes_Graph, 
-                            number_of_deployed_layers, 
+    def create_layers_tiling(self, PULP_Nodes_Graph,
+                            number_of_deployed_layers,
                             L1_dimension,
-                            l2_buffer_size, 
-                            BitActivation, 
-                            optional, 
-                            performance_single_layer, 
+                            l2_buffer_size,
+                            BitActivation,
+                            optional,
+                            performance_single_layer,
                             BitIn,
                             BitW,
                             BitOut,
@@ -299,7 +300,7 @@ class Model_deployment():
         layer_list = []
         stringa_features = []
         name_layer_list = []
-        name_layer_list_internal = []       
+        name_layer_list_internal = []
         MAC_total = 0
         BitOut = BitOut
         Layers_L3_input_act = 0
@@ -505,7 +506,7 @@ class Model_deployment():
                     if(i > 0):
                         PULP_Nodes_Graph[i].weights_dimension_L3 = PULP_Nodes_Graph[i-1].weights_dimension_L3 + int(weights_dim*factor_ch_out/2)
                     else:
-                        PULP_Nodes_Graph[i].weights_dimension_L3 = int(weights_dim*factor_ch_out/2)                    
+                        PULP_Nodes_Graph[i].weights_dimension_L3 = int(weights_dim*factor_ch_out/2)
             else:
                 PULP_Nodes_Graph[i].weights_dimension_L3 = PULP_Nodes_Graph[i-1].weights_dimension_L3
             PULP_Nodes_Graph[i].input_activation_dimensions = int(in_dim2*BitIn/8)
@@ -518,9 +519,9 @@ class Model_deployment():
                 MAC_total += nodes_to_deploy.MACs
         return PULP_Nodes_Graph, Layers_L3_input_act, Layers_L3_output_act, Layers_L3_weights, name_layer_list, name_list, MAC_total
 
-    def generate_intermediate_activations(self, PULP_Nodes_Graph, 
-                                        load_dir, 
-                                        number_of_deployed_layers, 
+    def generate_intermediate_activations(self, PULP_Nodes_Graph,
+                                        load_dir,
+                                        number_of_deployed_layers,
                                         check_layer,
                                         weights_to_write,
                                         BitIn,
@@ -603,7 +604,7 @@ class Model_deployment():
                             BitW=8,
                             BitOut=8,
                             BitActivation = 32,
-                            sdk='gap_sdk', 
+                            sdk='gap_sdk',
                             dma_parallelization='8-cores',
                             optional='8bit',
                             precision_dict_act = 'None',
@@ -617,18 +618,18 @@ class Model_deployment():
         formatter = logging.Formatter('%(asctime)s - %(message)s')
         fileh.setFormatter(formatter)
         fileh.setLevel(logging.DEBUG)
-        log = logging.getLogger() 
+        log = logging.getLogger()
         for hdlr in log.handlers[:]:
             log.removeHandler(hdlr)
         log.addHandler(fileh)
         print("Creating tiling profiling in Tiling_profling.log")
         # tiling of all the layers. Both tiling and layer generation
-        PULP_Nodes_Graph, num_L3_input_tile, num_L3_output_tile, num_L3_weight_tile, name_layer_list, name_list, MAC_total = self.create_layers_tiling(PULP_Nodes_Graph, 
-            number_of_deployed_layers, 
-            L1_dimension, 
-            l2_buffer_size, 
-            BitActivation, 
-            optional, 
+        PULP_Nodes_Graph, num_L3_input_tile, num_L3_output_tile, num_L3_weight_tile, name_layer_list, name_list, MAC_total = self.create_layers_tiling(PULP_Nodes_Graph,
+            number_of_deployed_layers,
+            L1_dimension,
+            l2_buffer_size,
+            BitActivation,
+            optional,
             performance_single_layer,
             BitIn,
             BitW,
@@ -651,9 +652,9 @@ class Model_deployment():
                 name_layer_list_unique.append(name_layer_list[i] + "L3" + ".c")
         # compute the checksums for intermediate activations checking
         if 'Check' in verbose_level or 'Last' in verbose_level:
-            PULP_Nodes_Graph, class_out = self.generate_intermediate_activations(PULP_Nodes_Graph, 
-                load_dir, 
-                number_of_deployed_layers, 
+            PULP_Nodes_Graph, class_out = self.generate_intermediate_activations(PULP_Nodes_Graph,
+                load_dir,
+                number_of_deployed_layers,
                 check_layer,
                 weights_to_write,
                 BitIn,
