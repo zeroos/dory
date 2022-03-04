@@ -45,6 +45,7 @@
 #define VERBOSE 1
 #define CYCLES_PRINT 1
 #define DEBUG_PRINT 1
+#define CHECKSUMS 1
 //dronet modification more debug options
 % endif
 
@@ -622,9 +623,11 @@ void network_run(unsigned int L3_weights_size)
       ${int(PULP_Nodes_Graph[0].input_activation_dimensions* BitIn / 8.0 * 2)}, // dronet modification: multiplied allocation by 2
       begin_end_n // begin is 1, end is 0
       );
-    //pi_cl_ram_read(&ram, activations_input, L2_input, ${int(PULP_Nodes_Graph[0].input_activation_dimensions* BitIn / 8.0)}, &buff_req1);
-    //pi_cl_ram_read_wait(&buff_req1);
-    //dronet modification: commented out the two lines above
+#ifdef CHECKSUMS
+    pi_cl_ram_read(&ram, activations_input, L2_input, ${int(PULP_Nodes_Graph[0].input_activation_dimensions* BitIn / 8.0)}, &buff_req1);
+    pi_cl_ram_read_wait(&buff_req1);
+#endif     
+    //dronet modification: added a if condition to doublecheck checksums
 % else:
     dory_L2_alloc(&L2_buffer_allocation,
       &L2_buffer_allocation_end,
