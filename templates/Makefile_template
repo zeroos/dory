@@ -28,7 +28,7 @@ APP_SRCS+=$(GAP_SDK_HOME)/libs/gap_lib/img_io/ImgIO.c
 APP_LDFLAGS += -lgaptools -lgaplib
 
 ifndef CORE
-CORE=1
+CORE=8
 else
 CORE= $(CORE)
 endif
