@@ -48,6 +48,8 @@
 #define CHECKSUMS 1
 //dronet modification more debug options
 % endif
+//#define REGRESSION_AS_CLASSIFICATION 1
+//dronet modification: regression as classification
 
 // ADDED
 extern int32_t *ResOut;
@@ -802,6 +804,24 @@ void network_run(unsigned int L3_weights_size)
 
     // dronet modification: CNN OUTPUTS
     if (i==14 && pi_core_id()==0){ //last iteration, core#0
+#ifdef REGRESSION_AS_CLASSIFICATION
+      // Steering
+      int32_t angle_straight = *(int32_t*)(L2_output);
+      int32_t angle_right = *(int32_t*)(L2_output+4);
+      int32_t angle_left = *(int32_t*)(L2_output+8);
+      // Collision
+      int32_t prob_of_col = *(int32_t*)(L2_output+12);
+      // Output variable
+      ResOut[0] = angle_straight;
+      ResOut[1] = angle_right;
+      ResOut[2] = angle_left;
+      ResOut[3] = prob_of_col;      
+#ifdef DEBUG_PRINT
+          // Print CNN outputs
+          printf("network.c: Steering Angle: straight %d right %d left %d, Collision: %d \n",  angle_straight, angle_right, angle_left, prob_of_col);
+#endif      
+
+#else
       // Steering
       int32_t angle = *(int32_t*)(L2_output);
       // Collision
@@ -812,7 +832,9 @@ void network_run(unsigned int L3_weights_size)
 #ifdef DEBUG_PRINT
       // Print CNN outputs
       printf("network.c: Steering Angle: %d, Collision: %d \n",  angle, prob_of_col);
-#endif      
+#endif
+
+#endif
     }
 
     // prevents error from compiler

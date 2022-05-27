@@ -65,13 +65,20 @@ static struct pi_device gpio_device;
 #define STREAM_WIDTH CAMERA_WIDTH
 #define STREAM_HEIGHT CAMERA_HEIGHT
 
+//#define REGRESSION_AS_CLASSIFICATION 1
 
+// GAP8 OUTPUT Size
+#ifdef REGRESSION_AS_CLASSIFICATION
+    #define CNN_OUTPUTS 4
+#else
+    #define CNN_OUTPUTS 2
+#endif
 
 // Global Variables
 static pi_buffer_t buffer;
 struct pi_device HyperRam;
 static struct pi_device camera;
-int32_t data_to_send[2];
+int32_t data_to_send[CNN_OUTPUTS];
 
 static struct pi_device wifi;
 static int open_wifi(struct pi_device *device)
@@ -240,9 +247,9 @@ void body()
     // printf("---------------------L2_input addr %ld \n", input_image_buffer);
 
 	// Allocate the output tensor
-	ResOut = (int32_t *) pi_l2_malloc(2*sizeof(int32_t));
+	ResOut = (int32_t *) pi_l2_malloc(CNN_OUTPUTS*sizeof(int32_t));
 	if (ResOut==0) {
-		printf("Failed to allocate Memory for Result (%ld bytes)\n", 2*sizeof(char));
+		printf("Failed to allocate Memory for Result (%ld bytes)\n", CNN_OUTPUTS*sizeof(int32_t));
 		return 1;
 	}
 
@@ -299,8 +306,6 @@ void body()
 	// 	WriteImageToFile(ImageName, INPUT_WIDTH, INPUT_HEIGHT,sizeof(uint8_t), input_image_buffer, GRAY_SCALE_IO);
 	// 	idx++;
 	// }
-	uint32_t idx = 0;
-	char ImageName[50];
 	while(1){
         LED_OFF;
 		// Start camera acquisition
@@ -310,15 +315,28 @@ void body()
         #ifdef JPEG_STREAMER
             frame_streamer_send(streamer, &buffer);
         #endif
+        LED_ON;
 
 		// Crop the image
 		image_crop(input_image_buffer, input_image_buffer);
 		pi_camera_control(&camera, PI_CAMERA_CMD_STOP, 0);
 
 
-        LED_ON;
   		// Run CNN inference
 		pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
+
+#ifdef REGRESSION_AS_CLASSIFICATION
+	    // printf("main.c: Steering Angle: %d %d %d, Collision: %d \n",  ResOut[0], ResOut[1], ResOut[2], ResOut[3]);
+
+		// UART send
+		data_to_send[0] = ResOut[0];
+		data_to_send[1] = ResOut[1];
+		data_to_send[2] = ResOut[2];
+		data_to_send[3] = ResOut[3];	
+		// DEBUG: UART send
+		// data_to_send[0] = 0x000000ef; // ResOut[0];
+		// data_to_send[1] = 0xffffe18f; // ResOut[1];
+#else
       	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
 
 		// UART send
@@ -327,11 +345,11 @@ void body()
 		// DEBUG: UART send
 		// data_to_send[0] = 0x000000ef; // ResOut[0];
 		// data_to_send[1] = 0xffffe18f; // ResOut[1];
-	
+#endif
 
-		pi_task_t wait_task2 = {0};
+	    pi_task_t wait_task2 = {0};
 	    pi_task_block(&wait_task2);
-	    pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
+	    pi_uart_write_async(&uart, (char *) data_to_send, CNN_OUTPUTS*4, &wait_task2);		  
 		// pi_task_wait_on(&wait_task2);
         
 	}
