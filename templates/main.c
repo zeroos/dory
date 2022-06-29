@@ -41,6 +41,7 @@
 
 // Verbose
 #define VERBOSE 1
+// #define PERF 1 // print FPS performances of the network 
 
 // Defines 
 #define FREQ_FC      200
@@ -103,9 +104,22 @@ static frame_streamer_t *open_streamer(char *name)
 {
   struct frame_streamer_conf frame_streamer_conf;
 
-  frame_streamer_conf_init(&frame_streamer_conf);
+  frame_streamer_conf_init(&frame_streamer_  		// Run CNN inference
+		pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
+      	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
 
-  frame_streamer_conf.transport = &wifi;
+		data_to_send[0] = ResOut[0];
+		data_to_send[1] = ResOut[1];	
+
+		/* UART synchronous send */
+	    // pi_uart_write(&uart, (char *) data_to_send, 8);		  
+
+		/* UART asynchronous send */
+		pi_task_t wait_task2 = {0};
+	    pi_task_block(&wait_task2);
+	    pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
+		//// pi_task_wait_on(&wait_task2);
+
   frame_streamer_conf.format = FRAME_STREAMER_FORMAT_JPEG;
   frame_streamer_conf.width = STREAM_WIDTH;
   frame_streamer_conf.height = STREAM_HEIGHT;
@@ -167,6 +181,26 @@ void image_crop(uint8_t* image_raw, uint8_t* image_cropped)
 // [x] Flash
 // [x] open filesystem on flash
 // [x] RAM
+		/* UART synchronous send */
+		data_to_send[0] = ResOut[0];
+		data_to_send[1] = ResOut[1];	
+	    pi_uart_write(&uart, (char *) data_to_send, 8);		  
+
+		/* UART asynchronous send */
+		// pi_task_t wait_task2 = {0};
+	    // pi_task_block(&wait_task2);
+	    // pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
+		// pi_task_wait_on(&wait_task2);
+
+#ifdef PERF
+		// performance measurements: end
+		pi_perf_stop();
+		perf_cyc =  pi_perf_read(PI_PERF_CYCLES);
+		perf_s = 1./((float)perf_cyc/(float)(FREQ_FC*1000*1000));
+		// printf("%d\n", perf_cyc); 		
+		printf("fps %f  (camera acquisition + wifi streaming + cropping + inference + uart)\n", perf_s);
+#endif		
+
 // [x] UART conf
 // [x] Camera
 // [x] open cluster
@@ -223,7 +257,21 @@ void body()
 	{
 		printf("Error ram open !\n");
 		pmsis_exit(-3);
-	}
+	}  		// Run CNN inference
+		pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
+      	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
+
+		data_to_send[0] = ResOut[0];
+		data_to_send[1] = ResOut[1];	
+
+		/* UART synchronous send */
+	    // pi_uart_write(&uart, (char *) data_to_send, 8);		  
+
+		/* UART asynchronous send */
+		pi_task_t wait_task2 = {0};
+	    pi_task_block(&wait_task2);
+	    pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
+		//// pi_task_wait_on(&wait_task2);
 
 	// UART Configuration
 	struct pi_device uart;
@@ -314,8 +362,22 @@ void body()
 	// 	WriteImageToFile(ImageName, INPUT_WIDTH, INPUT_HEIGHT,sizeof(uint8_t), input_image_buffer, GRAY_SCALE_IO);
 	// 	idx++;
 	// }
+
+
+#ifdef PERF
+	float perf_cyc;
+	float perf_s;	
+	pi_perf_conf(1<<PI_PERF_CYCLES); 
+#endif    
+
+      
 	while(1){
         LED_OFF;
+#ifdef PERF
+		// perf measurement begin
+		pi_perf_reset();                      
+		pi_perf_start();		
+#endif 
 		// Start camera acquisition
 		pi_camera_control(&camera, PI_CAMERA_CMD_START, 0);
 		pi_camera_capture(&camera, input_image_buffer, BUFF_SIZE);
@@ -346,25 +408,32 @@ void body()
 		// data_to_send[1] = 0xffffe18f; // ResOut[1];
 #else
       	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
+		
+  		// Run CNN inference
+		pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
+      	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
 
-		// UART send
 		data_to_send[0] = ResOut[0];
 		data_to_send[1] = ResOut[1];	
-		// DEBUG: UART send
-		// data_to_send[0] = 0x000000ef; // ResOut[0];
-		// data_to_send[1] = 0xffffe18f; // ResOut[1];
-#endif
 
 		/* UART synchronous send */
-		data_to_send[0] = ResOut[0];
-		data_to_send[1] = ResOut[1];	
-	    pi_uart_write(&uart, (char *) data_to_send, 8);		  
+	    // pi_uart_write(&uart, (char *) data_to_send, 8);		  
 
 		/* UART asynchronous send */
-		// pi_task_t wait_task2 = {0};
-	    // pi_task_block(&wait_task2);
-	    // pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
-		// pi_task_wait_on(&wait_task2);
+		pi_task_t wait_task2 = {0};
+	    pi_task_block(&wait_task2);
+	    pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
+		//// pi_task_wait_on(&wait_task2);
+
+#ifdef PERF
+		// performance measurements: end
+		pi_perf_stop();
+		perf_cyc =  pi_perf_read(PI_PERF_CYCLES);
+		perf_s = 1./((float)perf_cyc/(float)(FREQ_FC*1000*1000));
+		// printf("%d\n", perf_cyc); 		
+		printf("fps %f  (camera acquisition + wifi streaming + cropping + inference + uart)\n", perf_s);
+#endif		
+	
 	}
 
 	// close the cluster
