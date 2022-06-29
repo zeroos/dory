@@ -129,8 +129,16 @@ static void open_camera() {
 
 	pi_open_from_conf(&camera, &cam_conf);
 
-	errors = pi_camera_open(&camera);
+	errors = pi_camera_open(&camera);		/* UART synchronous send */
+		data_to_send[0] = ResOut[0];
+		data_to_send[1] = ResOut[1];	
+	    pi_uart_write(&uart, (char *) data_to_send, 8);		  
 
+		/* UART asynchronous send */
+		// pi_task_t wait_task2 = {0};
+	    // pi_task_block(&wait_task2);
+	    // pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
+		// pi_task_wait_on(&wait_task2);
 	printf("HiMax camera init:\t\t\t%s\n", errors?"Failed":"Ok");
 
 	if(errors) pmsis_exit(errors);
@@ -347,11 +355,16 @@ void body()
 		// data_to_send[1] = 0xffffe18f; // ResOut[1];
 #endif
 
-	    pi_task_t wait_task2 = {0};
-	    pi_task_block(&wait_task2);
-	    pi_uart_write_async(&uart, (char *) data_to_send, CNN_OUTPUTS*4, &wait_task2);		  
+		/* UART synchronous send */
+		data_to_send[0] = ResOut[0];
+		data_to_send[1] = ResOut[1];	
+	    pi_uart_write(&uart, (char *) data_to_send, 8);		  
+
+		/* UART asynchronous send */
+		// pi_task_t wait_task2 = {0};
+	    // pi_task_block(&wait_task2);
+	    // pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
 		// pi_task_wait_on(&wait_task2);
-        
 	}
 
 	// close the cluster
