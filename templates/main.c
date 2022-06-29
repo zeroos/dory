@@ -62,7 +62,7 @@ static struct pi_device gpio_device;
 #define LED_OFF pi_gpio_pin_write(&gpio_device, 2, 0)
 
 //streaming
-#define JPEG_STREAMER 1
+// #define JPEG_STREAMER 1
 #define STREAM_WIDTH CAMERA_WIDTH
 #define STREAM_HEIGHT CAMERA_HEIGHT
 
