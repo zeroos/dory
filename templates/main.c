@@ -104,22 +104,9 @@ static frame_streamer_t *open_streamer(char *name)
 {
   struct frame_streamer_conf frame_streamer_conf;
 
-  frame_streamer_conf_init(&frame_streamer_  		// Run CNN inference
-		pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
-      	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
+  frame_streamer_conf_init(&frame_streamer_conf);
 
-		data_to_send[0] = ResOut[0];
-		data_to_send[1] = ResOut[1];	
-
-		/* UART synchronous send */
-	    // pi_uart_write(&uart, (char *) data_to_send, 8);		  
-
-		/* UART asynchronous send */
-		pi_task_t wait_task2 = {0};
-	    pi_task_block(&wait_task2);
-	    pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
-		//// pi_task_wait_on(&wait_task2);
-
+  frame_streamer_conf.transport = &wifi;
   frame_streamer_conf.format = FRAME_STREAMER_FORMAT_JPEG;
   frame_streamer_conf.width = STREAM_WIDTH;
   frame_streamer_conf.height = STREAM_HEIGHT;
@@ -143,16 +130,8 @@ static void open_camera() {
 
 	pi_open_from_conf(&camera, &cam_conf);
 
-	errors = pi_camera_open(&camera);		/* UART synchronous send */
-		data_to_send[0] = ResOut[0];
-		data_to_send[1] = ResOut[1];	
-	    pi_uart_write(&uart, (char *) data_to_send, 8);		  
+	errors = pi_camera_open(&camera);
 
-		/* UART asynchronous send */
-		// pi_task_t wait_task2 = {0};
-	    // pi_task_block(&wait_task2);
-	    // pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
-		// pi_task_wait_on(&wait_task2);
 	printf("HiMax camera init:\t\t\t%s\n", errors?"Failed":"Ok");
 
 	if(errors) pmsis_exit(errors);
@@ -181,26 +160,6 @@ void image_crop(uint8_t* image_raw, uint8_t* image_cropped)
 // [x] Flash
 // [x] open filesystem on flash
 // [x] RAM
-		/* UART synchronous send */
-		data_to_send[0] = ResOut[0];
-		data_to_send[1] = ResOut[1];	
-	    pi_uart_write(&uart, (char *) data_to_send, 8);		  
-
-		/* UART asynchronous send */
-		// pi_task_t wait_task2 = {0};
-	    // pi_task_block(&wait_task2);
-	    // pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
-		// pi_task_wait_on(&wait_task2);
-
-#ifdef PERF
-		// performance measurements: end
-		pi_perf_stop();
-		perf_cyc =  pi_perf_read(PI_PERF_CYCLES);
-		perf_s = 1./((float)perf_cyc/(float)(FREQ_FC*1000*1000));
-		// printf("%d\n", perf_cyc); 		
-		printf("fps %f  (camera acquisition + wifi streaming + cropping + inference + uart)\n", perf_s);
-#endif		
-
 // [x] UART conf
 // [x] Camera
 // [x] open cluster
@@ -257,21 +216,7 @@ void body()
 	{
 		printf("Error ram open !\n");
 		pmsis_exit(-3);
-	}  		// Run CNN inference
-		pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
-      	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
-
-		data_to_send[0] = ResOut[0];
-		data_to_send[1] = ResOut[1];	
-
-		/* UART synchronous send */
-	    // pi_uart_write(&uart, (char *) data_to_send, 8);		  
-
-		/* UART asynchronous send */
-		pi_task_t wait_task2 = {0};
-	    pi_task_block(&wait_task2);
-	    pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
-		//// pi_task_wait_on(&wait_task2);
+	}
 
 	// UART Configuration
 	struct pi_device uart;
@@ -363,7 +308,6 @@ void body()
 	// 	idx++;
 	// }
 
-
 #ifdef PERF
 	float perf_cyc;
 	float perf_s;	
@@ -377,7 +321,7 @@ void body()
 		// perf measurement begin
 		pi_perf_reset();                      
 		pi_perf_start();		
-#endif 
+#endif
 		// Start camera acquisition
 		pi_camera_control(&camera, PI_CAMERA_CMD_START, 0);
 		pi_camera_capture(&camera, input_image_buffer, BUFF_SIZE);
@@ -385,30 +329,12 @@ void body()
         #ifdef JPEG_STREAMER
             frame_streamer_send(streamer, &buffer);
         #endif
-        LED_ON;
 
 		// Crop the image
 		image_crop(input_image_buffer, input_image_buffer);
 		pi_camera_control(&camera, PI_CAMERA_CMD_STOP, 0);
 
-
-  		// Run CNN inference
-		pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
-
-#ifdef REGRESSION_AS_CLASSIFICATION
-	    // printf("main.c: Steering Angle: %d %d %d, Collision: %d \n",  ResOut[0], ResOut[1], ResOut[2], ResOut[3]);
-
-		// UART send
-		data_to_send[0] = ResOut[0];
-		data_to_send[1] = ResOut[1];
-		data_to_send[2] = ResOut[2];
-		data_to_send[3] = ResOut[3];	
-		// DEBUG: UART send
-		// data_to_send[0] = 0x000000ef; // ResOut[0];
-		// data_to_send[1] = 0xffffe18f; // ResOut[1];
-#else
-      	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
-		
+        LED_ON;
   		// Run CNN inference
 		pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
       	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
@@ -433,7 +359,7 @@ void body()
 		// printf("%d\n", perf_cyc); 		
 		printf("fps %f  (camera acquisition + wifi streaming + cropping + inference + uart)\n", perf_s);
 #endif		
-	
+
 	}
 
 	// close the cluster
