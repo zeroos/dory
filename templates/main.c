@@ -43,16 +43,29 @@
 #define VERBOSE 1
 // #define PERF 1 // print FPS performances of the network 
 
+// Change Mode
+//#define REGRESSION_AS_CLASSIFICATION 1
+//#define IMAV 1
+
 // Defines 
 #define FREQ_FC      200
 #define FREQ_CL      175
-#define INPUT_WIDTH  200
-#define INPUT_HEIGHT 200
-#define INPUT_COLORS 1
 
 // Camera
-#define CAMERA_WIDTH    324
-#define CAMERA_HEIGHT   244
+#ifdef IMAV
+	#define CAMERA_WIDTH    162
+	#define CAMERA_HEIGHT   162
+	#define INPUT_WIDTH  162
+	#define INPUT_HEIGHT 162
+	#define INPUT_COLORS 1
+#else
+	#define CAMERA_WIDTH    324
+	#define CAMERA_HEIGHT   244
+	#define INPUT_WIDTH  200
+	#define INPUT_HEIGHT 200
+	#define INPUT_COLORS 1
+#endif
+
 #define CAMERA_SIZE   	(CAMERA_HEIGHT*CAMERA_WIDTH)
 #define BUFF_SIZE       (CAMERA_WIDTH*CAMERA_HEIGHT)
 
@@ -66,14 +79,15 @@ static struct pi_device gpio_device;
 #define STREAM_WIDTH CAMERA_WIDTH
 #define STREAM_HEIGHT CAMERA_HEIGHT
 
-//#define REGRESSION_AS_CLASSIFICATION 1
-
 // GAP8 OUTPUT Size
 #ifdef REGRESSION_AS_CLASSIFICATION
     #define CNN_OUTPUTS 4
+#elif IMAV
+    #define CNN_OUTPUTS 7
 #else
     #define CNN_OUTPUTS 2
 #endif
+
 
 // Global Variables
 static pi_buffer_t buffer;
@@ -331,7 +345,9 @@ void body()
         #endif
 
 		// Crop the image
+		#ifndef IMAV
 		image_crop(input_image_buffer, input_image_buffer);
+		#endif
 		pi_camera_control(&camera, PI_CAMERA_CMD_STOP, 0);
 
         LED_ON;
@@ -339,17 +355,19 @@ void body()
 		pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
       	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
 
-		data_to_send[0] = ResOut[0];
-		data_to_send[1] = ResOut[1];	
+		// prepare data for UART send
+		for(i=0, i<CNN_OUTPUTS, i++){
+			data_to_send[i] = ResOut[i];
+		}
 
 		/* UART synchronous send */
-	    // pi_uart_write(&uart, (char *) data_to_send, 8);		  
+	    // pi_uart_write(&uart, (char *) data_to_send, CNN_OUTPUTS*4);		  
 
 		/* UART asynchronous send */
 		pi_task_t wait_task2 = {0};
 	    pi_task_block(&wait_task2);
-	    pi_uart_write_async(&uart, (char *) data_to_send, 8, &wait_task2);		  
-		//// pi_task_wait_on(&wait_task2);
+	    pi_uart_write_async(&uart, (char *) data_to_send, CNN_OUTPUTS*4, &wait_task2);		  
+		// pi_task_wait_on(&wait_task2);
 
 #ifdef PERF
 		// performance measurements: end
