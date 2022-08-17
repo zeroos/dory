@@ -167,7 +167,50 @@ void image_crop(uint8_t* image_raw, uint8_t* image_cropped)
     }
 }
 
+// PERFORMANCES
+void start_perf_counter(){
+	#ifdef PERF
+	// configure
+	pi_perf_conf(1<<PI_PERF_CYCLES); 
+	// perf measurement begin
+	pi_perf_reset();                      
+	pi_perf_start();		
+	#endif
+}
 
+void end_perf_counter(bool verbose){
+
+	#ifdef PERF
+	// performance measurements: end
+	pi_perf_stop();
+	float perf_cyc =  pi_perf_read(PI_PERF_CYCLES);
+	float perf_s = 1./((float)perf_cyc/(float)(FREQ_FC*1000*1000));
+	// printf("%d\n", perf_cyc);
+	printf("%f FPS \n", perf_s);
+	#endif
+}
+
+
+PI_L2 unsigned char *image_in;
+int32_t *ResOut;
+/*  ResOut description:
+	- Dronet (regression yaw)
+		ResOut[0] = steering
+		ResOut[1] = collision
+	- Dronet (classification yaw)
+		ResOut[0] = steering left
+		ResOut[1] = straight
+		ResOut[2] = steering right
+		ResOut[3] = collision
+	- Dronet (IMAV)
+		ResOut[0] = Edge     visible
+		ResOut[0] = Edge not visible
+		ResOut[0] = Corner   visible
+		ResOut[1] = Yaw
+		ResOut[3] = collision left
+		ResOut[3] = collision center
+		ResOut[3] = collision right
+*/
 
 // Checklist
 // [x] Set voltage-Freq 
@@ -181,9 +224,6 @@ void image_crop(uint8_t* image_raw, uint8_t* image_cropped)
 // [x] allocate CNN output tensor
 // [x] Network setup
 // [x] while 1
-int32_t *ResOut;
-PI_L2 unsigned char *image_in;
-
 void body()
 {
     pi_fs_file_t *file;
@@ -328,14 +368,11 @@ void body()
 	pi_perf_conf(1<<PI_PERF_CYCLES); 
 #endif    
 
-      
+    printf("While loop...\n");
 	while(1){
+		start_perf_counter();
+
         LED_OFF;
-#ifdef PERF
-		// perf measurement begin
-		pi_perf_reset();                      
-		pi_perf_start();		
-#endif
 		// Start camera acquisition
 		pi_camera_control(&camera, PI_CAMERA_CMD_START, 0);
 		pi_camera_capture(&camera, input_image_buffer, BUFF_SIZE);
@@ -346,7 +383,7 @@ void body()
 
 		// Crop the image
 		#ifndef IMAV
-		image_crop(input_image_buffer, input_image_buffer);
+			image_crop(input_image_buffer, input_image_buffer);
 		#endif
 		pi_camera_control(&camera, PI_CAMERA_CMD_STOP, 0);
 
@@ -361,23 +398,15 @@ void body()
 		}
 
 		/* UART synchronous send */
-	    // pi_uart_write(&uart, (char *) data_to_send, CNN_OUTPUTS*4);		  
+	    // pi_uart_write(&uart, (char *) data_to_send, CNN_OUTPUTS*4);
 
 		/* UART asynchronous send */
 		pi_task_t wait_task2 = {0};
 	    pi_task_block(&wait_task2);
-	    pi_uart_write_async(&uart, (char *) data_to_send, CNN_OUTPUTS*4, &wait_task2);		  
+	    pi_uart_write_async(&uart, (char *) data_to_send, CNN_OUTPUTS*4, &wait_task2);
 		// pi_task_wait_on(&wait_task2);
 
-#ifdef PERF
-		// performance measurements: end
-		pi_perf_stop();
-		perf_cyc =  pi_perf_read(PI_PERF_CYCLES);
-		perf_s = 1./((float)perf_cyc/(float)(FREQ_FC*1000*1000));
-		// printf("%d\n", perf_cyc); 		
-		printf("fps %f  (camera acquisition + wifi streaming + cropping + inference + uart)\n", perf_s);
-#endif		
-
+		end_perf_counter(true);
 	}
 
 	// close the cluster
