@@ -393,7 +393,7 @@ void body()
       	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
 
 		// prepare data for UART send
-		for(i=0, i<CNN_OUTPUTS, i++){
+		for(int i=0; i<CNN_OUTPUTS; i++){
 			data_to_send[i] = ResOut[i];
 		}
 
