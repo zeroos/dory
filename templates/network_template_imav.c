@@ -822,7 +822,14 @@ void network_run(unsigned int L3_weights_size)
       ResOut[6] = collision_right;
 #ifdef DEBUG_PRINT
           // Print CNN outputs
-          printf("network.c: Steering Angle: straight %d right %d left %d, Collision: %d \n",  angle_straight, angle_right, angle_left, prob_of_col);
+          printf("network.c: Steering Angle: edge_visible %d edge_not_visible %d corner_visible %d, yaw %d, collision_left %d, collision_center %d, collision_right %d, \n",
+          edge_visible,
+          edge_not_visible,
+          corner_visible,
+          yaw,
+          collision_left,
+          collision_center,
+          collision_right);
 #endif      
 
     }
