@@ -622,7 +622,7 @@ void network_run(unsigned int L3_weights_size)
     dory_L2_alloc(&L2_buffer_allocation,
       &L2_buffer_allocation_end,
       &L2_input,
-      ${int(PULP_Nodes_Graph[0].input_activation_dimensions* BitIn / 8.0 * 2)}, // dronet modification: multiplied allocation by 2
+      ${int(PULP_Nodes_Graph[0].input_activation_dimensions* BitIn / 8.0 * 2)}, // dronet modification: multiplied allocation by 2. We do this because imput size is 200*200, but we should store all the image 324*244
       begin_end_n // begin is 1, end is 0
       );
 #ifdef CHECKSUMS
