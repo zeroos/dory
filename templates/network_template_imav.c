@@ -182,9 +182,9 @@ ${PULP_Nodes_Graph[i].check_sum_in}${'' if loop.last else ', '}\
 };
 static int check_activations_dimension[${len(PULP_Nodes_Graph)}] = {\
 % for i in range(len(PULP_Nodes_Graph)):
-${int(PULP_Nodes_Graph[i].input_activation_dimensions)*(2 if i==0 else 1)}${'' if loop.last else ', '}\
+${int(PULP_Nodes_Graph[i].input_activation_dimensions)}${'' if loop.last else ', '}\
 % endfor
-};  //dronet modification; increasing size of the first layer
+};
 static int check_activations_dimension_L3_in[${len(PULP_Nodes_Graph)}] = {\
 % for i in range(len(PULP_Nodes_Graph)):
 ${int(PULP_Nodes_Graph[i].input_activation_dimensions_L3)}${'' if loop.last else ', '}\
