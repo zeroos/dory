@@ -801,7 +801,7 @@ void network_run(unsigned int L3_weights_size)
 % endif
 
     // dronet modification: CNN OUTPUTS
-    if (i==14 && pi_core_id()==0){ //last iteration, core#0
+    if (i==${len(PULP_Nodes_Graph)-1} && pi_core_id()==0){ //last iteration, core#0
       // Edge
       int32_t edge_visible = *(int32_t*)(L2_output);
       int32_t edge_not_visible = *(int32_t*)(L2_output+4);
