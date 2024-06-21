@@ -48,8 +48,6 @@
 #define CHECKSUMS 1
 //dronet modification more debug options
 % endif
-//#define REGRESSION_AS_CLASSIFICATION 1
-//dronet modification: regression as classification
 
 // ADDED
 extern int32_t *ResOut;
@@ -184,9 +182,9 @@ ${PULP_Nodes_Graph[i].check_sum_in}${'' if loop.last else ', '}\
 };
 static int check_activations_dimension[${len(PULP_Nodes_Graph)}] = {\
 % for i in range(len(PULP_Nodes_Graph)):
-${int(PULP_Nodes_Graph[i].input_activation_dimensions)*(2 if i==0 else 1)}${'' if loop.last else ', '}\
+${int(PULP_Nodes_Graph[i].input_activation_dimensions)}${'' if loop.last else ', '}\
 % endfor
-};  //dronet modification; increasing size of the first layer
+};
 static int check_activations_dimension_L3_in[${len(PULP_Nodes_Graph)}] = {\
 % for i in range(len(PULP_Nodes_Graph)):
 ${int(PULP_Nodes_Graph[i].input_activation_dimensions_L3)}${'' if loop.last else ', '}\
@@ -622,7 +620,7 @@ void network_run(unsigned int L3_weights_size)
     dory_L2_alloc(&L2_buffer_allocation,
       &L2_buffer_allocation_end,
       &L2_input,
-      ${int(PULP_Nodes_Graph[0].input_activation_dimensions* BitIn / 8.0 * 2)}, // dronet modification: multiplied allocation by 2. We do this because imput size is 200*200, but we should store all the image 324*244
+      ${int(PULP_Nodes_Graph[0].input_activation_dimensions* BitIn / 8.0)},
       begin_end_n // begin is 1, end is 0
       );
 #ifdef CHECKSUMS
@@ -804,37 +802,36 @@ void network_run(unsigned int L3_weights_size)
 
     // dronet modification: CNN OUTPUTS
     if (i==${len(PULP_Nodes_Graph)-1} && pi_core_id()==0){ //last iteration, core#0
-#ifdef REGRESSION_AS_CLASSIFICATION
-      // Steering
-      int32_t angle_straight = *(int32_t*)(L2_output);
-      int32_t angle_right = *(int32_t*)(L2_output+4);
-      int32_t angle_left = *(int32_t*)(L2_output+8);
+      // Edge
+      int32_t edge_visible = *(int32_t*)(L2_output);
+      int32_t edge_not_visible = *(int32_t*)(L2_output+4);
+      int32_t corner_visible = *(int32_t*)(L2_output+8);
+      // Yaw
+      int32_t yaw = *(int32_t*)(L2_output+12);
       // Collision
-      int32_t prob_of_col = *(int32_t*)(L2_output+12);
+      int32_t collision_left = *(int32_t*)(L2_output+16);
+      int32_t collision_center = *(int32_t*)(L2_output+20);
+      int32_t collision_right = *(int32_t*)(L2_output+24);
       // Output variable
-      ResOut[0] = angle_straight;
-      ResOut[1] = angle_right;
-      ResOut[2] = angle_left;
-      ResOut[3] = prob_of_col;      
+      ResOut[0] = edge_visible;
+      ResOut[1] = edge_not_visible;
+      ResOut[2] = corner_visible;
+      ResOut[3] = yaw;
+      ResOut[4] = collision_left;
+      ResOut[5] = collision_center;
+      ResOut[6] = collision_right;
 #ifdef DEBUG_PRINT
           // Print CNN outputs
-          printf("network.c: Steering Angle: straight %d right %d left %d, Collision: %d \n",  angle_straight, angle_right, angle_left, prob_of_col);
+          printf("network.c: Steering Angle: edge_visible %d edge_not_visible %d corner_visible %d, yaw %d, collision_left %d, collision_center %d, collision_right %d, \n",
+          edge_visible,
+          edge_not_visible,
+          corner_visible,
+          yaw,
+          collision_left,
+          collision_center,
+          collision_right);
 #endif      
 
-#else
-      // Steering
-      int32_t angle = *(int32_t*)(L2_output);
-      // Collision
-      int32_t prob_of_col = *(int32_t*)(L2_output+4);
-      // Output variable
-      ResOut[0] = angle;
-      ResOut[1] = prob_of_col;      
-#ifdef DEBUG_PRINT
-      // Print CNN outputs
-      printf("network.c: Steering Angle: %d, Collision: %d \n",  angle, prob_of_col);
-#endif
-
-#endif
     }
 
     // prevents error from compiler

@@ -41,17 +41,31 @@
 
 // Verbose
 #define VERBOSE 1
+// #define PERF 1 // print FPS performances of the network 
+
+// Change Mode
+//#define REGRESSION_AS_CLASSIFICATION 1
+//#define IMAV 1
 
 // Defines 
 #define FREQ_FC      200
 #define FREQ_CL      175
-#define INPUT_WIDTH  200
-#define INPUT_HEIGHT 200
-#define INPUT_COLORS 1
 
 // Camera
-#define CAMERA_WIDTH    324
-#define CAMERA_HEIGHT   244
+#ifdef IMAV
+	#define CAMERA_WIDTH    162
+	#define CAMERA_HEIGHT   162
+	#define INPUT_WIDTH  162
+	#define INPUT_HEIGHT 162
+	#define INPUT_COLORS 1
+#else
+	#define CAMERA_WIDTH    324
+	#define CAMERA_HEIGHT   244
+	#define INPUT_WIDTH  200
+	#define INPUT_HEIGHT 200
+	#define INPUT_COLORS 1
+#endif
+
 #define CAMERA_SIZE   	(CAMERA_HEIGHT*CAMERA_WIDTH)
 #define BUFF_SIZE       (CAMERA_WIDTH*CAMERA_HEIGHT)
 
@@ -61,18 +75,19 @@ static struct pi_device gpio_device;
 #define LED_OFF pi_gpio_pin_write(&gpio_device, 2, 0)
 
 //streaming
-#define JPEG_STREAMER 1
+// #define JPEG_STREAMER 1
 #define STREAM_WIDTH CAMERA_WIDTH
 #define STREAM_HEIGHT CAMERA_HEIGHT
-
-//#define REGRESSION_AS_CLASSIFICATION 1
 
 // GAP8 OUTPUT Size
 #ifdef REGRESSION_AS_CLASSIFICATION
     #define CNN_OUTPUTS 4
+#elif IMAV
+    #define CNN_OUTPUTS 7
 #else
     #define CNN_OUTPUTS 2
 #endif
+
 
 // Global Variables
 static pi_buffer_t buffer;
@@ -152,7 +167,50 @@ void image_crop(uint8_t* image_raw, uint8_t* image_cropped)
     }
 }
 
+// PERFORMANCES
+void start_perf_counter(){
+	#ifdef PERF
+	// configure
+	pi_perf_conf(1<<PI_PERF_CYCLES); 
+	// perf measurement begin
+	pi_perf_reset();                      
+	pi_perf_start();		
+	#endif
+}
 
+void end_perf_counter(bool verbose){
+
+	#ifdef PERF
+	// performance measurements: end
+	pi_perf_stop();
+	float perf_cyc =  pi_perf_read(PI_PERF_CYCLES);
+	float perf_s = 1./((float)perf_cyc/(float)(FREQ_FC*1000*1000));
+	// printf("%d\n", perf_cyc);
+	printf("%f FPS \n", perf_s);
+	#endif
+}
+
+
+PI_L2 unsigned char *image_in;
+int32_t *ResOut;
+/*  ResOut description:
+	- Dronet (regression yaw)
+		ResOut[0] = steering
+		ResOut[1] = collision
+	- Dronet (classification yaw)
+		ResOut[0] = steering left
+		ResOut[1] = straight
+		ResOut[2] = steering right
+		ResOut[3] = collision
+	- Dronet (IMAV)
+		ResOut[0] = Edge     visible
+		ResOut[0] = Edge not visible
+		ResOut[0] = Corner   visible
+		ResOut[1] = Yaw
+		ResOut[3] = collision left
+		ResOut[3] = collision center
+		ResOut[3] = collision right
+*/
 
 // Checklist
 // [x] Set voltage-Freq 
@@ -166,9 +224,6 @@ void image_crop(uint8_t* image_raw, uint8_t* image_cropped)
 // [x] allocate CNN output tensor
 // [x] Network setup
 // [x] while 1
-int32_t *ResOut;
-PI_L2 unsigned char *image_in;
-
 void body()
 {
     pi_fs_file_t *file;
@@ -306,7 +361,17 @@ void body()
 	// 	WriteImageToFile(ImageName, INPUT_WIDTH, INPUT_HEIGHT,sizeof(uint8_t), input_image_buffer, GRAY_SCALE_IO);
 	// 	idx++;
 	// }
+
+#ifdef PERF
+	float perf_cyc;
+	float perf_s;	
+	pi_perf_conf(1<<PI_PERF_CYCLES); 
+#endif    
+
+    printf("While loop...\n");
 	while(1){
+		start_perf_counter();
+
         LED_OFF;
 		// Start camera acquisition
 		pi_camera_control(&camera, PI_CAMERA_CMD_START, 0);
@@ -315,43 +380,33 @@ void body()
         #ifdef JPEG_STREAMER
             frame_streamer_send(streamer, &buffer);
         #endif
-        LED_ON;
 
 		// Crop the image
-		image_crop(input_image_buffer, input_image_buffer);
+		#ifndef IMAV
+			image_crop(input_image_buffer, input_image_buffer);
+		#endif
 		pi_camera_control(&camera, PI_CAMERA_CMD_STOP, 0);
 
-
+        LED_ON;
   		// Run CNN inference
 		pi_cluster_send_task_to_cl(&cluster_dev, &cluster_task);
-
-#ifdef REGRESSION_AS_CLASSIFICATION
-	    // printf("main.c: Steering Angle: %d %d %d, Collision: %d \n",  ResOut[0], ResOut[1], ResOut[2], ResOut[3]);
-
-		// UART send
-		data_to_send[0] = ResOut[0];
-		data_to_send[1] = ResOut[1];
-		data_to_send[2] = ResOut[2];
-		data_to_send[3] = ResOut[3];	
-		// DEBUG: UART send
-		// data_to_send[0] = 0x000000ef; // ResOut[0];
-		// data_to_send[1] = 0xffffe18f; // ResOut[1];
-#else
       	// printf("main.c: Steering Angle: %d, Collision: %d \n",  ResOut[0], ResOut[1]);
 
-		// UART send
-		data_to_send[0] = ResOut[0];
-		data_to_send[1] = ResOut[1];	
-		// DEBUG: UART send
-		// data_to_send[0] = 0x000000ef; // ResOut[0];
-		// data_to_send[1] = 0xffffe18f; // ResOut[1];
-#endif
+		// prepare data for UART send
+		for(int i=0; i<CNN_OUTPUTS; i++){
+			data_to_send[i] = ResOut[i];
+		}
 
-	    pi_task_t wait_task2 = {0};
+		/* UART synchronous send */
+	    // pi_uart_write(&uart, (char *) data_to_send, CNN_OUTPUTS*4);
+
+		/* UART asynchronous send */
+		pi_task_t wait_task2 = {0};
 	    pi_task_block(&wait_task2);
-	    pi_uart_write_async(&uart, (char *) data_to_send, CNN_OUTPUTS*4, &wait_task2);		  
+	    pi_uart_write_async(&uart, (char *) data_to_send, CNN_OUTPUTS*4, &wait_task2);
 		// pi_task_wait_on(&wait_task2);
-        
+
+		end_perf_counter(true);
 	}
 
 	// close the cluster
